@@ -204,6 +204,26 @@ function SubmitForm() {
 
       if (error) throw error
 
+      // Send email notification (fail silently if it doesn't work)
+      try {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: form.name.trim(),
+            handle: form.handle.trim(),
+            email: form.email.trim(),
+            country: form.country.trim(),
+            category: form.category,
+            description: form.description.trim(),
+            media_urls: mediaUrls,
+          }),
+        })
+      } catch (emailErr) {
+        console.error('Failed to send email notification:', emailErr)
+        // Still show success to user even if email fails
+      }
+
       resetForm()
       setStatus('success')
       setStatusMessage("Thanks for joining the cult! We've got your submission.")
