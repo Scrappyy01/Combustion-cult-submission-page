@@ -189,7 +189,7 @@
   border: none;
   border-radius: 6px;
   background: #ff5a1f;
-  color: #14100e;
+  color: #ffffff;
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
@@ -218,8 +218,8 @@
   display: inline-block;
   width: 1rem;
   height: 1rem;
-  border: 2px solid rgba(20, 16, 14, 0.3);
-  border-top-color: #14100e;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
