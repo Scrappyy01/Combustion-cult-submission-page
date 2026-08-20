@@ -7,6 +7,16 @@ import './SubmitForm.css'
 const CATEGORIES = ['Car', 'Bike', 'Truck', 'Boat', 'Engine', 'Motorsport', 'Other']
 const MAX_DESCRIPTION_LENGTH = 500
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
+const MAX_TOTAL_SIZE = 200 * 1024 * 1024 // 200 MB for entire submission
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
@@ -73,6 +83,7 @@ function SubmitForm() {
   const [form, setForm] = useState(INITIAL_FORM)
   const [files, setFiles] = useState([])
   const [errors, setErrors] = useState({})
+  const [fileError, setFileError] = useState('')
   const [status, setStatus] = useState('idle') // idle | submitting | success | error
   const [statusMessage, setStatusMessage] = useState('')
   const fileInputRef = useRef(null)
@@ -98,13 +109,45 @@ function SubmitForm() {
 
   function handleFilesSelected(e) {
     const selected = Array.from(e.target.files || [])
-    const mapped = selected.map((file) => ({
-      id: ++nextFileId,
-      file,
-      previewUrl: URL.createObjectURL(file),
-      isVideo: file.type.startsWith('video/'),
-    }))
-    setFiles((prev) => [...prev, ...mapped])
+    setFileError('')
+    const oversizedFiles = []
+    const validFiles = []
+
+    selected.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        oversizedFiles.push(`${file.name} (${formatFileSize(file.size)})`)
+      } else {
+        validFiles.push(file)
+      }
+    })
+
+    if (oversizedFiles.length > 0) {
+      setFileError(
+        `File(s) too large (max 100 MB each): ${oversizedFiles.join(', ')}`,
+      )
+    }
+
+    if (validFiles.length > 0) {
+      const totalSize = validFiles.reduce((sum, f) => sum + f.size, 0) +
+        files.reduce((sum, f) => sum + f.file.size, 0)
+
+      if (totalSize > MAX_TOTAL_SIZE) {
+        setFileError(
+          `Total file size exceeds 200 MB limit. Current total: ${formatFileSize(totalSize)}`,
+        )
+        e.target.value = ''
+        return
+      }
+
+      const mapped = validFiles.map((file) => ({
+        id: ++nextFileId,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        isVideo: file.type.startsWith('video/'),
+      }))
+      setFiles((prev) => [...prev, ...mapped])
+    }
+
     e.target.value = '' // allow re-selecting the same file later
   }
 
@@ -114,6 +157,7 @@ function SubmitForm() {
       if (target) URL.revokeObjectURL(target.previewUrl)
       return prev.filter((f) => f.id !== id)
     })
+    setFileError('')
   }
 
   function resetForm() {
@@ -179,7 +223,8 @@ function SubmitForm() {
       <div className="submit-form-card">
         <header className="submit-form-header">
           <img src={ccLogo} alt="Combustion Cult" className="submit-form-logo" />
-          <p className="submit-form-tagline">Show us your metal. Submit your photos & videos.</p>
+          <h1 className="submit-form-headline">Get Your Ride Featured. Win the Gear.</h1>
+          <p className="submit-form-description">Submit your ride for a chance to be featured on Combustion Cult. Go into that month's draw to win a Combustion Cult Merch Pack.</p>
         </header>
 
         {status === 'success' ? (
@@ -343,6 +388,13 @@ function SubmitForm() {
                 ref={fileInputRef}
                 onChange={handleFilesSelected}
               />
+              <span className="file-info">Max 100 MB per file, 200 MB total</span>
+
+              {fileError && (
+                <span className="field-error" role="alert">
+                  {fileError}
+                </span>
+              )}
 
               {files.length > 0 && (
                 <ul className="file-preview-list">
@@ -353,7 +405,10 @@ function SubmitForm() {
                       ) : (
                         <img src={f.previewUrl} alt="" className="file-thumb" />
                       )}
-                      <span className="file-name">{f.file.name}</span>
+                      <div className="file-info-block">
+                        <span className="file-name">{f.file.name}</span>
+                        <span className="file-size">{formatFileSize(f.file.size)}</span>
+                      </div>
                       <button
                         type="button"
                         className="file-remove"
@@ -393,7 +448,8 @@ function SubmitForm() {
             </div>
 
             <button type="submit" className="submit-button" disabled={isSubmitting}>
-              {isSubmitting ? 'Submitting…' : 'Submit'}
+              {isSubmitting && <span className="spinner"></span>}
+              <span>{isSubmitting ? 'Submitting' : 'Submit'}</span>
             </button>
           </form>
         )}
